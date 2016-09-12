@@ -1,0 +1,17 @@
+{
+    "aflw_cache_path": "./aflw_cache.npz",
+    "aflw_sqlite_path": "/home/takiyu/Datasets/Face/AFLW/aflw/data/aflw.sqlite",
+    "aflw_imgdir_path": "/home/takiyu/Datasets/Face/AFLW/aflw/data/flickr",
+    "aflw_test_rate": 0.041010499,
+    "alexnet_caffemodel_path": "/home/takiyu/Datasets/caffemodel/bvlc_alexnet.caffemodel",
+    "gpus": { "main": -1 },
+    "n_loaders_train": 2,
+    "n_loaders_test": 1,
+    "n_epoch": 1000,
+    "batchsize": 4,
+    "port_face": 8888,
+    "port_weight": 8889,
+    "port_lossgraph": 8890,
+    "outdir": "result",
+    "outdir_pretrain": "result_pretrain"
+}
