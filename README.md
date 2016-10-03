@@ -27,6 +27,7 @@ Important variables are configured by `config.json`.
 set `gpu` positive number to use GPU, port numbers of web servers and so on.
 
 ## Train ##
+To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0).
 
 ### Preparation ###
 Download [AFLW Dataset](https://lrs.icg.tugraz.at/research/aflw/) and [AlexNet Caffe Model](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet), expand them and set `aflw_sqlite_path`, `aflw_imgdir_path`, and `alexnet_caffemodel_path` in `config.json`
@@ -58,3 +59,4 @@ Open `http://localhost:8891/` to see predictions.
 ## ToDo ##
 - [ ] Tune training parameters.
 - [ ] Fix pose drawing.
+- [ ] Implement post processes.
