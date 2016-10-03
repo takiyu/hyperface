@@ -28,17 +28,18 @@ set `gpu` positive number to use GPU, port numbers of web servers and so on.
 
 ## Train ##
 
-### Prepare ###
+### Preparation ###
 Download [AFLW Dataset](https://lrs.icg.tugraz.at/research/aflw/) and [AlexNet Caffe Model](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet), expand them and set `aflw_sqlite_path`, `aflw_imgdir_path`, and `alexnet_caffemodel_path` in `config.json`
 
-### Pretrain with Face_RCNN model ###
+### Pre-training ###
+Pre-training with RCNN_Face model.
 ```bash
 python ./scripts/train.py --pretrain
 ```
 Open `http://localhost:8888/`, `http://localhost:8889/` and `http://localhost:8890/` with your web browser to see loss graphs, network weights and predictions.
 Port numbers are configured by `config.json`.
 
-### Main train ###
+### Main training ###
 ```bash
 python ./scripts/train.py --pretrainedmodel result_pretrain/model_epoch_40
 ```
@@ -53,3 +54,7 @@ Open `http://localhost:8891/` to see predictions.
 ### Result on AFLW test images ###
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/face.png">
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/nonface.png">
+
+## ToDo ##
+- [ ] Tune training parameters.
+- [ ] Fix pose drawing.
