@@ -8,7 +8,7 @@ This is NOT official implementation.
 * Image viewer on web browsers
 
 ## Testing Environments ##
-### Ubuntu 14.04 ###
+### Ubuntu 16.04 ###
 * Python 2.7
 * Chainer 1.14.0
 * OpenCV 2.4.9
