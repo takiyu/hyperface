@@ -20,6 +20,7 @@ def face_img_func(key, entry, viewer):
     assert(img.ndim == 3 and (img.shape[0] == 1 or img.shape[0] == 3))
     img = np.transpose(img, (1, 2, 0))
     img = img.copy()  # for safety
+    img += 0.5  # [-0.5:0.5] -> [0:1]
 
     # Draw
     try:
@@ -69,6 +70,7 @@ def weights_img_func(key, entry, viewer):
     return res_data
 
 
+# ========================= Loss Graph (In a tab page) =========================
 def lossgraph_entry_func(key, viewer, trainer):
     # Get a log
     log_report = trainer.get_extension('LogReport')
@@ -84,15 +86,28 @@ def lossgraph_entry_func(key, viewer, trainer):
                 epoch.append(row[epoch_key])
         return loss, epoch
 
-    train_loss, train_epoch = extract_log(log, 'main/loss', 'epoch')
-    test_loss, test_epoch = extract_log(log, 'validation/main/loss', 'epoch')
+    # Create a graph image from log
+    def create_graph_img(log, kind):
+        train_key = 'main/{}'.format(kind)
+        test_key = 'validation/main/{}'.format(kind)
+        train_loss, train_epoch = extract_log(log, train_key, 'epoch')
+        test_loss, test_epoch = extract_log(log, test_key, 'epoch')
+        if len(train_loss) == 0 and len(test_loss) == 0:
+            return None
+        else:
+            return drawing.draw_loss_graph(train_loss, test_loss,
+                                           train_epoch, test_epoch, title=kind)
 
-    return {'train_loss': train_loss, 'train_epoch': train_epoch,
-            'test_loss': test_loss, 'test_epoch': test_epoch}
-
+    # Create loss graphs
+    res = dict()
+    loss_kinds = ['loss', 'loss_detection', 'loss_landmark', 'loss_visibility',
+                  'loss_pose', 'loss_gender']
+    for k in loss_kinds:
+        img = create_graph_img(log, k)
+        if img is not None:  # Use only valid ones
+            res[k] = img
+    return res
 
 def lossgraph_img_func(key, entry, viewer):
-    # Draw graph
-    img = drawing.draw_loss_graph(entry['train_loss'], entry['test_loss'],
-                                  entry['train_epoch'], entry['test_epoch'])
-    return {'img': img, 'cap': 'Loss Graph'}
+    # Convert to viewer format
+    return [{'img': entry[k]} for k in entry.keys()]

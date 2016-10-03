@@ -5,7 +5,6 @@ import math
 import numpy as np
 import os.path
 import random
-import six
 import sqlite3
 
 import chainer
@@ -126,13 +125,7 @@ def _load_raw_aflw(sqlite_path, image_dir):
     return list(dataset_dict.values())
 
 
-def _selective_search_dlib(img, max_img_size=(500, 500),
-                           kvals=(50, 200, 2), min_size=2000, check=True,
-                           debug_window=False):
-    if debug_window:
-        org_img = img
-
-    # Resize the image for speed up
+def _scale_down_image(img, max_img_size):
     org_h, org_w = img.shape[0:2]
     h, w = img.shape[0:2]
     if max_img_size[0] < w:
@@ -145,8 +138,20 @@ def _selective_search_dlib(img, max_img_size=(500, 500),
     if h == org_h and w == org_w:
         resize_scale = 1
     else:
-        resize_scale = org_h / h  # equal to `org_w / w`
+        resize_scale = float(org_h) / float(h)  # equal to `org_w / w`
         img = cv2.resize(img, (int(w), int(h)))
+    return img, resize_scale
+
+
+def _selective_search_dlib(img, max_img_size=(500, 500),
+                           kvals=(50, 200, 2), min_size=2200, check=True,
+                           debug_window=False):
+    if debug_window:
+        org_img = img
+    org_h, org_w = img.shape[0:2]
+
+    # Resize the image for speed up
+    img, resize_scale = _scale_down_image(img, max_img_size)
 
     # Selective search
     drects = []
@@ -187,37 +192,20 @@ def _rect_contain(rect, pt):
     return x <= pt[0] <= x + w and y <= pt[1] <= y + h
 
 
-def _extract_valid_rects(rects, landmark, visibility, img,
-                         others_landmark_pts):
-    ''' Extract rectangles which contain all landmark points or no them '''
-    contained = False
+def _extract_valid_rects(rects, img, others_landmark_pts):
+    ''' Extract rectangles which do not contain other landmarks '''
     # Extraction
     dst = list()
     for rect in rects:
-        mode = None  # t: all contained, f: no contained
-        for pt, visib in zip(landmark, visibility):
-            if visib == 0:
-                continue
-            if mode is None:
-                # Set current mode
-                mode = _rect_contain(rect, pt)
-            else:
-                # Check with mode
-                if _rect_contain(rect, pt) != mode:
-                    break
+        # Check if others landmarks are contained
+        for others_pt in others_landmark_pts:
+            if _rect_contain(rect, others_pt):
+                break
         else:
-            # Check if others landmarks are contained
-            for others_pt in others_landmark_pts:
-                if _rect_contain(rect, others_pt):
-                    break
-            else:
-                # No others landmark, and all contained or no contained
-                if mode is True:
-                    contained = True
-                dst.append(rect)
+            dst.append(rect)
 
-    # Escape from no rectangle or no landmark
-    if len(dst) == 0 or not contained:
+    # avoid no rectangle
+    if len(dst) == 0:
         dst.append((0, 0, img.shape[1], img.shape[0]))
 
     return dst
@@ -309,25 +297,6 @@ def _flip_y(img, landmark, landmark_visib, pose):
     return img, landmark, landmark_visib, pose
 
 
-class ImageCacheLoader(object):
-
-    def __init__(self, max_imgs_cnt=30000):
-        self.cache = dict()
-        self.max_imgs_cnt = max_imgs_cnt
-
-    def __call__(self, path):
-        try:
-            return self.cache[path]
-        except KeyError:
-            img = cv2.imread(path)
-            if len(self.cache) <= self.max_imgs_cnt:
-                self.cache[path] = img
-            else:
-                logger.info('ImageCacheLoader is filled ({} images)'
-                            .format(self.max_imgs_cnt))
-            return img
-
-
 class AFLW(chainer.dataset.DatasetMixin):
     ''' AFLW Dataset
     Arguments
@@ -336,17 +305,17 @@ class AFLW(chainer.dataset.DatasetMixin):
             get_example() is called. To disable the alternation, set 1.
         * overlap_tls(dict):
             Overlap thresholds of face rectangles and selective search's ones.
-        * use_cache_loader(bool):
-            A flag for use of cache loader to load images. Cache loader needs
-            a lot of memory.
-        ` random_flip(bool):
+        * random_flip(bool):
             A flag for random flip of datasets.
+        * min_valid_landmark_cnt(int):
+            The least number for valid landmark. This value is used for
+            deciding whether faces and their landmarks are valid.
     '''
 
     def __init__(self, n_try_detect_alt=30,
                  overlap_tls={'detection_p': 0.50, 'detection_n': 0.35,
                               'landmark': 0.35, 'pose': 0.50, 'gender': 0.50},
-                 use_cache_loader=False, random_flip=True):
+                 random_flip=True, min_valid_landmark_cnt=3):
         chainer.dataset.DatasetMixin.__init__(self)
 
         # Member variables
@@ -355,12 +324,7 @@ class AFLW(chainer.dataset.DatasetMixin):
         self.n_try_detect_alt = n_try_detect_alt
         self.overlap_tls = overlap_tls
         self.random_flip = random_flip
-
-        # Image loader
-        if use_cache_loader:
-            self.load_img = ImageCacheLoader()
-        else:
-            self.load_img = cv2.imread
+        self.min_valid_landmark_cnt = min_valid_landmark_cnt
 
     def setup_raw(self, sqlite_path, image_dir, log_interval=10):
         # Load raw AFLW dataset
@@ -374,7 +338,7 @@ class AFLW(chainer.dataset.DatasetMixin):
                 logger.info(' {}/{}'.format(i, len(self.dataset)))
 
             # Load image
-            img = self.load_img(entry['img_path'])
+            img = cv2.imread(entry['img_path'])
             if img is None or img.size == 0:
                 # Empty elements
                 self.dataset[i]['ssrects'] = list()
@@ -382,8 +346,7 @@ class AFLW(chainer.dataset.DatasetMixin):
             else:
                 # Selective search
                 ssrects = _selective_search_dlib(img)
-                ssrects = _extract_valid_rects(ssrects, entry['landmark'],
-                                               entry['landmark_visib'], img,
+                ssrects = _extract_valid_rects(ssrects, img,
                                                entry['others_landmark_pts'])
                 overlaps = [_rect_overlap_rate(ssrect, entry['rect'])
                             for ssrect in ssrects]
@@ -403,14 +366,35 @@ class AFLW(chainer.dataset.DatasetMixin):
             raise IndexError
 
         # Loop for detection alternation
-        for _ in six.moves.xrange(self.n_try_detect_alt):
-            # Random selective search rectangle to normalize
-            ssrect_idx = random.randint(0, n_ssrects - 1)
+        try_cnt = 0
+        special_skip_cnt = 0
+        while try_cnt < self.n_try_detect_alt:
+            try_cnt += 1
+
+            # === Entry variables ===
+            ssrect_idx = random.randint(0, n_ssrects - 1)  # Random ssrect
             ssrect = entry['ssrects'][ssrect_idx]
             overlap = entry['ssrect_overlaps'][ssrect_idx]
-            overlap = np.array(overlap, dtype=np.float32)
+            img_path = entry['img_path']
+            landmark = entry['landmark']
+            landmark_visib = entry['landmark_visib']
+            pose = entry['pose']
+            gender = entry['gender']
+            x, y, w, h = ssrect
 
-            # Detection
+            # === Crop and Normalize 1 (landmark) ===
+            # Landmark ([-0.5:0.5])
+            landmark_offset = np.array([x + w / 2, y + h / 2], dtype=np.float32)
+            landmark_denom = np.array([w, h], dtype=np.float32)
+            landmark = (landmark - landmark_offset) / landmark_denom
+            # Consider range of the cropped rectangle
+            hidden_idxs = np.where((landmark < -0.5) | (0.5 < landmark))
+            landmark = landmark.copy()
+            landmark[hidden_idxs[0]] = 0.0  # mask [x, y] (overwrite)
+            landmark_visib = landmark_visib.copy()
+            landmark_visib[hidden_idxs[0]] = 0.0  # mask (overwrite)
+
+            # === Convert 1 (Detection) ===
             if overlap > self.overlap_tls['detection_p']:
                 detection = np.array(1, dtype=np.int32)
             elif overlap < self.overlap_tls['detection_n']:
@@ -418,54 +402,53 @@ class AFLW(chainer.dataset.DatasetMixin):
             else:
                 detection = np.array(-1, dtype=np.int32)  # Ignore
 
-            # Check the alternation
+            # === Special Skip for invalid landmark faces ===
+            n_valid_landmark = landmark_visib[landmark_visib > 0.5].shape[0]
+            if detection == 1 and \
+               n_valid_landmark < self.min_valid_landmark_cnt:
+                try_cnt -= 1
+                special_skip_cnt += 1
+                if special_skip_cnt > 10:  # avoid infinity loop
+                    break
+                else:
+                    continue
+
+            # === Check the alternation ===
             if detection == -1:
                 continue
-            # Negative sample
-            if self.detect_alt_diff > 0 and detection == 0:
+            if self.detect_alt_diff > 0 and detection == 0:  # Negative sample
                 self.detect_alt_diff -= 1
                 break
-            # Positive sample
-            if self.detect_alt_diff <= 0 and detection == 1:
+            if self.detect_alt_diff <= 0 and detection == 1:  # Positive sample
                 self.detect_alt_diff += 1
                 break
+        # End of detection alternation loop
 
-        # Entry variables
-        img_path = entry['img_path']
-        img = self.load_img(img_path)
+        # === Crop and Normalize 2 (image) ===
+        img = cv2.imread(img_path)
         if img is None or img.size == 0:
             logger.warn('Invalid image "{}"'.format(img_path))
             raise IndexError
-        landmark = entry['landmark']
-        landmark_visib = entry['landmark_visib']
-        pose = entry['pose']
-        gender = entry['gender']
-
-        # === Crop and Normalize ===
-        x, y, w, h = ssrect
         # Image
         img = img[y:y + h + 1, x:x + w + 1, :]
         if img.size == 0:
-            img = self.load_img(img_path)
-            logger.warn('Invalid crop rectangle "{}" and image shape is "{}")'
-                        .format(ssrect, img.shape))
+            org_img = cv2.imread(img_path)
+            logger.warn('Invalid crop rectangle. (rect:{}, img:{}, org_img{}")'
+                        .format(ssrect, img.shape, org_img.shape))
             raise IndexError
         img = cv2.resize(img, IMG_SIZE)
-        img = img.astype(np.float32) / 255.0
-        # Landmark
-        landmark_offset = np.array([x + w / 2, y + h / 2], dtype=np.float32)
-        landmark_denom = np.array([w, h], dtype=np.float32)
-        landmark = (landmark - landmark_offset) / landmark_denom
+        img = img.astype(np.float32)
+        # [0:255](about) -> [-0.5:0.5]
+        img = cv2.normalize(img, None, -0.5, 0.5, cv2.NORM_MINMAX)
 
         # === Random flip ===
         if self.random_flip and random.randint(0, 1):
-            img, landmark, landmark_visib, pose = _flip_y(img, landmark,
-                                                          landmark_visib, pose)
+            flip_ret = _flip_y(img, landmark, landmark_visib, pose)
+            img, landmark, landmark_visib, pose = flip_ret
 
-        # === Convert and Mask ===
+        # === Convert 2 (and mask) ===
         # Image
         img = np.transpose(img, (2, 0, 1))
-
         # Landmark and visibility
         if overlap > self.overlap_tls['landmark']:
             # [21, 2] -> [42]
@@ -481,7 +464,6 @@ class AFLW(chainer.dataset.DatasetMixin):
             landmark_visib = np.zeros_like(landmark_visib)
             mask_landmark = np.zeros_like(landmark)
             mask_landmark_visib = np.zeros_like(landmark_visib)
-
         # Pose
         if overlap > self.overlap_tls['pose']:
             mask_pose = np.ones_like(pose)
@@ -489,10 +471,9 @@ class AFLW(chainer.dataset.DatasetMixin):
             # No difference
             pose = np.zeros_like(pose)
             mask_pose = np.zeros_like(pose)
-
         # Gender
         if overlap > self.overlap_tls['gender']:
-            pass
+            pass  # use entry value
         else:
             gender = np.array(-1, dtype=np.int32)  # Ignore
 

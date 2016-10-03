@@ -111,12 +111,12 @@ def draw_landmark(img, landmark, visibility, color, line_color_scale):
     # Line
     line_color = tuple(v * line_color_scale for v in color)
     for i0, i1 in conn_list:
-        if visibility[i0] and visibility[i1]:
+        if visibility[i0] > 0.5 and visibility[i1] > 0.5:
             _draw_line(img, landmark[i0], landmark[i1], line_color, 2)
 
     # Point
     for pt, visib in zip(landmark, visibility):
-        if visib:
+        if visib > 0.5:
             _draw_circle(img, pt, color, 4, -1)
         else:
             _draw_circle(img, pt, color, 4, 1)
@@ -150,7 +150,7 @@ def draw_gender(img, gender, size=7):
 
 def draw_loss_graph(train_loss_list, test_loss_list, train_epoch_list=None,
                     test_epoch_list=None, train_color='blue', test_color='red',
-                    legend_loc='upper right'):
+                    legend_loc='upper right', title=None):
     # Axis data
     # Losses
     train_loss = np.asarray(train_loss_list)
@@ -194,6 +194,8 @@ def draw_loss_graph(train_loss_list, test_loss_list, train_epoch_list=None,
     ax.set_xlim(left=0)
     ax.set_ylim(bottom=0)
     ax.legend(loc=legend_loc)
+    if title is not None:
+        ax.set_title(title)
 
     # Draw
     canvas = agg.FigureCanvasAgg(fig)
