@@ -24,7 +24,8 @@ This is NOT official implementation.
 
 ## Configuration ##
 Important variables are configured by `config.json`.
-set `gpu` positive number to use GPU, port numbers of web servers and so on.
+
+Set `gpu` positive number to use GPU, port numbers of web servers and so on.
 
 ## Train ##
 To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0).
