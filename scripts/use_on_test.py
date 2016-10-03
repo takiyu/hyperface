@@ -73,8 +73,11 @@ if __name__ == '__main__':
     imgviewer.start(viewer_que, stop_page=True, port=config.port_evaluate)
 
     # Main loop
-    cnt_o, cnt_x = 0, 0
-    for data in test:
+    logger.info('Start main loop')
+    cnt_img, cnt_o, cnt_x = 0, 0, 0
+    while True:
+        data = test[cnt_img]
+
         # Create single batch
         img = data['x_img']
         imgs = xp.asarray([img])
@@ -128,4 +131,5 @@ if __name__ == '__main__':
         else:
             viewer_que.put(('☓', '{}'.format(cnt_x), {'img': img}))
             cnt_x = (cnt_x + 1) % max_cnt
+        cnt_img = (cnt_img + 1) % len(test)
         time.sleep(1.0)
