@@ -4,6 +4,7 @@ import cv2
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import multiprocessing
+import os
 import threading
 import types
 
@@ -27,14 +28,14 @@ socketio_logger.setLevel(CRITICAL)
 IO_NAMESPACE = '/viewer'
 
 
-def encodeimg(img, ext='.png'):
+def encodeimg(img, ext='.jpeg'):
     try:
         ret, img = cv2.imencode(ext, img)
         if not ret:
             raise
         img = img.tostring()
         img = base64.encodestring(img)
-        img = 'data:image/png;base64,' + img.decode('ascii')
+        img = 'data:image/jpeg;base64,' + img.decode('ascii')
         return img
     except Exception:
         logger.error('Failed to encodeimg()')
@@ -83,6 +84,7 @@ def encodeImgElement(data, key):
 
 
 class ImageBufferingThread(threading.Thread):
+
     def __init__(self, input_queue):
         threading.Thread.__init__(self)
         self.pool = {}
@@ -152,7 +154,8 @@ class ImageBufferingThread(threading.Thread):
         return dst
 
     def register_update_event_func(self, update_event):
-        if isinstance(update_event, types.FunctionType) or update_event is None:
+        if isinstance(update_event, types.FunctionType) or \
+           update_event is None:
             self.update_event = update_event
         else:
             logger.error('Update event must be a function or None')
@@ -217,7 +220,7 @@ def new_server(viewer_queue, stop_page, port, secret_key):
     logger.info('Stop server on port %d' % port)
 
 
-def start(viewer_queue, stop_page=True, port=5000, secret_key='SECRET_KEY'):
+def start(viewer_queue, stop_page=True, port=5000, secret_key=os.urandom(24)):
     process = multiprocessing.Process(target=new_server,
                                       args=(viewer_queue, stop_page,
                                             port, secret_key))
