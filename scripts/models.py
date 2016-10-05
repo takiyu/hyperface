@@ -125,8 +125,8 @@ class HyperFaceModel(chainer.Chain):
             loss_pose *= self.loss_weights[3]
             loss_gender *= self.loss_weights[4]
 
-            loss = loss_detection + loss_landmark + loss_visibility + \
-                   loss_pose + loss_gender
+            loss = (loss_detection + loss_landmark + loss_visibility +
+                    loss_pose + loss_gender)
 
         # Prediction (the same shape as t_**)
         h_detection = F.argmax(h_detection, axis=1)  # ([[y, n]] -> [d])

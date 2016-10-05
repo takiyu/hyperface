@@ -9,11 +9,10 @@ from chainer.training import extension
 from . import imgviewer
 
 # logging
-from logging import getLogger, NullHandler
+from logging import getLogger, NullHandler, INFO
 logger = getLogger(__name__)
 logger.addHandler(NullHandler())
 # logging for imgviewer
-from logging import INFO
 imgviewer.logger.setLevel(INFO)
 
 default_img_key = 'img'

@@ -17,12 +17,11 @@ import models
 from extensions import imgviewer
 
 # logging
-from logging import getLogger, DEBUG
+from logging import getLogger, DEBUG, INFO
 log_initializer.setFmt()
 log_initializer.setRootLevel(DEBUG)
 logger = getLogger(__name__)
 # logging for imgviewer
-from logging import INFO
 imgviewer.logger.setLevel(INFO)
 
 # Disable type check in chainer

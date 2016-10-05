@@ -70,7 +70,7 @@ def weights_img_func(key, entry, viewer):
     return res_data
 
 
-# ========================= Loss Graph (In a tab page) =========================
+# ========================= Loss Graph (In a tab page) ========================
 def lossgraph_entry_func(key, viewer, trainer):
     # Get a log
     log_report = trainer.get_extension('LogReport')
@@ -107,6 +107,7 @@ def lossgraph_entry_func(key, viewer, trainer):
         if img is not None:  # Use only valid ones
             res[k] = img
     return res
+
 
 def lossgraph_img_func(key, entry, viewer):
     # Convert to viewer format
