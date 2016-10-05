@@ -101,7 +101,7 @@ def draw_landmark(img, landmark, visibility, color, line_color_scale):
                  [12, 20], [16, 20]]  # face contour
 
     if landmark.ndim == 1:
-        landmark = landmark.reshape(landmark.shape[-1] / 2, 2)
+        landmark = landmark.reshape(int(landmark.shape[-1] / 2), 2)
     assert(landmark.shape[0] == 21 and visibility.shape[0] == 21)
 
     h, w = img.shape[0:2]
