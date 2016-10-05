@@ -358,15 +358,19 @@ class AFLW(chainer.dataset.DatasetMixin):
     def __len__(self):
         return len(self.dataset)
 
-    def get_example(self, i):
+    def get_entry(self, i):
         entry = self.dataset[i]
+        img_path = entry['img_path']
+        landmark = entry['landmark']
+        landmark_visib = entry['landmark_visib']
+        pose = entry['pose']
+        gender = entry['gender']
+        ssrects = entry['ssrects']
+        overlaps = entry['ssrect_overlaps']
+        return (img_path, landmark, landmark_visib, pose, gender, ssrects,
+                overlaps)
 
-        # Check the number of selective search rectagles
-        n_ssrects = len(entry['ssrects'])
-        if n_ssrects == 0:
-            logger.warn('No selective search rectangle')
-            raise IndexError
-
+    def get_example(self, i):
         # Loop for detection alternation
         try_cnt = 0
         special_skip_cnt = 0
@@ -374,14 +378,14 @@ class AFLW(chainer.dataset.DatasetMixin):
             try_cnt += 1
 
             # === Entry variables ===
-            ssrect_idx = random.randint(0, n_ssrects - 1)  # Random ssrect
-            ssrect = entry['ssrects'][ssrect_idx]
-            overlap = entry['ssrect_overlaps'][ssrect_idx]
-            img_path = entry['img_path']
-            landmark = entry['landmark']
-            landmark_visib = entry['landmark_visib']
-            pose = entry['pose']
-            gender = entry['gender']
+            img_path, landmark, landmark_visib, pose, gender, \
+                ssrects, overlaps = self.get_entry(i)
+            if len(ssrects) == 0:
+                logger.warn('No selective search rectangle')
+                raise IndexError
+            ssrect_idx = random.randint(0, len(ssrects) - 1)  # Random ssrect
+            ssrect = ssrects[ssrect_idx]
+            overlap = overlaps[ssrect_idx]
             x, y, w, h = ssrect
 
             # === Crop and Normalize 1 (landmark) ===
