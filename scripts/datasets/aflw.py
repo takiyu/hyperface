@@ -341,6 +341,8 @@ class AFLW(chainer.dataset.DatasetMixin):
             img = cv2.imread(entry['img_path'])
             if img is None or img.size == 0:
                 # Empty elements
+                logger.warn('Failed to load image {}'.format(
+                    entry['img_path']))
                 self.dataset[i]['ssrects'] = list()
                 self.dataset[i]['ssrect_overlaps'] = list()
             else:
@@ -384,7 +386,8 @@ class AFLW(chainer.dataset.DatasetMixin):
 
             # === Crop and Normalize 1 (landmark) ===
             # Landmark ([-0.5:0.5])
-            landmark_offset = np.array([x + w / 2, y + h / 2], dtype=np.float32)
+            landmark_offset = np.array(
+                [x + w / 2, y + h / 2], dtype=np.float32)
             landmark_denom = np.array([w, h], dtype=np.float32)
             landmark = (landmark - landmark_offset) / landmark_denom
             # Consider range of the cropped rectangle

@@ -1,6 +1,6 @@
 {
-    "aflw_sqlite_path": "/home/soneone/Datasets/Face/AFLW/aflw/data/aflw.sqlite",
-    "aflw_imgdir_path": "/home/soneone/Datasets/Face/AFLW/aflw/flickr",
+    "aflw_sqlite_path": "/home/someone/Datasets/Face/AFLW/aflw/data/aflw.sqlite",
+    "aflw_imgdir_path": "/home/someone/Datasets/Face/AFLW/aflw/data/flickr",
     "aflw_cache_path": "./aflw_cache.npz",
     "aflw_test_rate": 0.041010499,
     "alexnet_caffemodel_path": "/home/someone/Datasets/caffemodel/bvlc_alexnet.caffemodel",
