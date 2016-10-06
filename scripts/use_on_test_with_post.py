@@ -153,7 +153,7 @@ if __name__ == '__main__':
         for stage_cnt in six.moves.xrange(2):
             if stage_cnt == 0:
                 # Selective search, crop and normalize
-                ssrects = common.selective_search_dlib(img, min_size=3000,
+                ssrects = common.selective_search_dlib(img, min_size=2500,
                                                        check=False,
                                                        debug_window=False)
             else:
@@ -197,4 +197,4 @@ if __name__ == '__main__':
             cnt_x = (cnt_x + 1) % max_cnt
         cnt_img = (cnt_img + 1) % len(test)
 
-        time.sleep(10)
+        time.sleep(1.0)
