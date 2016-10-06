@@ -79,13 +79,13 @@ def _forward_with_rects(model, img_org, rects, batchsize):
     return detections, landmarks, visibilitys, poses, genders
 
 
-def _propose_region(prev_rect, pts, pad_rate=0.3):
+def _propose_region(prev_rect, pts, pad_rate=0.4):
     rect = cv2.boundingRect(pts)
     # padding
     x, y, w, h = rect
-    pad_w = w * pad_rate / 2.0
-    pad_h = h * pad_rate / 2.0
-    rect = (x - pad_w, y - pad_h, w + pad_w, h + pad_h)
+    pad_w = w * pad_rate
+    pad_h = h * pad_rate
+    rect = (x - pad_w / 2.0, y - pad_h / 2.0, w + pad_w, h + pad_h)
     # union
     x = max(rect[0], prev_rect[0])
     y = max(rect[1], prev_rect[1])
