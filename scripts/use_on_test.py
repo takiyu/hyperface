@@ -113,7 +113,8 @@ if __name__ == '__main__':
         img = np.transpose(img, (1, 2, 0))
         img = img.copy()
         img += 0.5  # [-0.5:0.5] -> [0:1]
-        detection = (detection > config.detection_threshold)
+        detection = (detection > 0.5)
+        gender = (gender > 0.5)
 
         # Draw results
         drawing.draw_detection(img, detection)

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import cv2
-import math
 import numpy as np
 import os.path
 import random
@@ -150,37 +149,6 @@ def _extract_valid_rects(rects, img, others_landmark_pts):
     return dst
 
 
-def _rect_or(a, b):
-    x = min(a[0], b[0])
-    y = min(a[1], b[1])
-    w = max(a[0] + a[2], b[0] + b[2]) - x
-    h = max(a[1] + a[3], b[1] + b[3]) - y
-    return (x, y, w, h)
-
-
-def _rect_and(a, b):
-    x = max(a[0], b[0])
-    y = max(a[1], b[1])
-    w = min(a[0] + a[2], b[0] + b[2]) - x
-    h = min(a[1] + a[3], b[1] + b[3]) - y
-    if w < 0 or h < 0:
-        return (0, 0, 0, 0)
-    return (x, y, w, h)
-
-
-def _rect_area(a):
-    return a[2] * a[3]
-
-
-def _rect_overlap_rate(a, b):
-    area_and = _rect_area(_rect_and(a, b))
-    area_or = _rect_area(_rect_or(a, b))
-    if area_or == 0:
-        return 0
-    else:
-        return math.sqrt(float(area_and) / float(area_or))
-
-
 def _flip_y(img, landmark, landmark_visib, pose):
     # copy
     img = np.array(img)
@@ -290,7 +258,7 @@ class AFLW(chainer.dataset.DatasetMixin):
                 ssrects = common.selective_search_dlib(img)
                 ssrects = _extract_valid_rects(ssrects, img,
                                                entry['others_landmark_pts'])
-                overlaps = [_rect_overlap_rate(ssrect, entry['rect'])
+                overlaps = [common.rect_overlap_rate(ssrect, entry['rect'])
                             for ssrect in ssrects]
                 self.dataset[i]['ssrects'] = ssrects
                 self.dataset[i]['ssrect_overlaps'] = overlaps
@@ -469,3 +437,28 @@ def setup_aflw(cache_path, sqlite_path=None, image_dir=None, test_rate=0.04,
                 format(len(train), len(test)))
 
     return train, test
+
+
+def aflw_template_landmark():
+    ''' Template landmark from AFLW dataset '''
+    return np.array([[-0.479962468147, 0.471864163876],
+                     [-0.30303606391, 0.508996844292],
+                     [-0.106451146305, 0.498075485229],
+                     [0.106451146305, 0.498075485229],
+                     [0.30303606391, 0.508996844292],
+                     [0.479962468147, 0.471864163876],
+                     [-0.447198301554, 0.321149080992],
+                     [-0.318325966597, 0.325517624617],
+                     [-0.163242310286, 0.308043420315],
+                     [0.163242310286, 0.308043420315],
+                     [0.318325966597, 0.325517624617],
+                     [0.447198301554, 0.321149080992],
+                     [-0.674257874489, -0.151652157307],
+                     [-0.170000001788, -0.075740583241],
+                     [0.0, 0.0],
+                     [0.170000001788, -0.075740583241],
+                     [0.674257874489, -0.151652157307],
+                     [-0.272456139326, -0.347239643335],
+                     [0.0, -0.336318254471],
+                     [0.272456139326, -0.347239643335],
+                     [0.0, -0.737950384617]], dtype=np.float32)

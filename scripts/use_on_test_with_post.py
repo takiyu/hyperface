@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import chainer
-
 import argparse
 import cv2
 import os
@@ -11,12 +8,11 @@ import numpy as np
 import six
 import time
 
-import common
 import config
 import datasets
 import drawing
+from hyperface import HyperFace
 import log_initializer
-import models
 from extensions import imgviewer
 
 # logging
@@ -29,69 +25,6 @@ imgviewer.logger.setLevel(INFO)
 
 # Disable type check in chainer
 os.environ["CHAINER_TYPE_CHECK"] = "0"
-
-def _cvt_variable(v):
-    # Convert from chainer variable
-    if isinstance(v, chainer.variable.Variable):
-        v = v.data
-        if hasattr(v, 'get'):
-            v = v.get()
-    return v
-
-
-def _forward_with_rects(model, img_org, rects, batchsize):
-    # Crop and normalize
-    cropped_imgs = list()
-    for x, y, w, h in rects:
-        img = img_org[int(y):int(y + h + 1), int(x):int(x + w + 1), :]
-        img = cv2.resize(img, models.IMG_SIZE)
-        img = cv2.normalize(img, None, -0.5, 0.5, cv2.NORM_MINMAX)
-        img = np.transpose(img, (2, 0, 1))
-        cropped_imgs.append(img)
-
-    detections = list()
-    landmarks = list()
-    visibilitys = list()
-    poses = list()
-    genders = list()
-
-    # Forward each batch
-    for i in six.moves.xrange(0, len(cropped_imgs), batchsize):
-        # Create batch
-        batch = xp.asarray(cropped_imgs[i:i+batchsize], dtype=np.float32)
-        x = chainer.Variable(batch, volatile=True)
-        # Forward
-        y = model(x)
-        # Chainer.Variable -> np.ndarray
-        detections.extend(_cvt_variable(y['detection']))
-        landmarks.extend(_cvt_variable(y['landmark']))
-        visibilitys.extend(_cvt_variable(y['visibility']))
-        poses.extend(_cvt_variable(y['pose']))
-        genders.extend(_cvt_variable(y['gender']))
-
-    # Denormalize landmarks
-    for i, (x, y, w, h) in enumerate(rects):
-        landmarks[i] = landmarks[i].reshape(models.N_LANDMARK, 2)  # (21, 2)
-        landmark_offset = np.array([x + w / 2, y + h / 2], dtype=np.float32)
-        landmark_denom = np.array([w, h], dtype=np.float32)
-        landmarks[i] = landmarks[i] * landmark_denom + landmark_offset
-
-    return detections, landmarks, visibilitys, poses, genders
-
-
-def _propose_region(prev_rect, pts, pad_rate=0.4):
-    rect = cv2.boundingRect(pts)
-    # padding
-    x, y, w, h = rect
-    pad_w = w * pad_rate
-    pad_h = h * pad_rate
-    rect = (x - pad_w / 2.0, y - pad_h / 2.0, w + pad_w, h + pad_h)
-    # union
-    x = max(rect[0], prev_rect[0])
-    y = max(rect[1], prev_rect[1])
-    w = min(rect[0] + rect[2], prev_rect[0] + prev_rect[2]) - x
-    h = min(rect[1] + rect[3], prev_rect[1] + prev_rect[3]) - y
-    return (x, y, w, h)
 
 
 if __name__ == '__main__':
@@ -113,25 +46,7 @@ if __name__ == '__main__':
                                   config.aflw_imgdir_path,
                                   config.aflw_test_rate, raw_mode=True)
 
-    # Define a model
-    logger.info('Define a HyperFace model')
-    model = models.HyperFaceModel()
-    model.train = False
-    model.report = False
-    model.backward = False
-
-    # Initialize model
-    logger.info('Initialize a model using model "{}"'.format(args.model))
-    chainer.serializers.load_npz(args.model, model)
-
-    # Setup GPU
-    if config.gpu >= 0:
-        chainer.cuda.check_cuda_available()
-        chainer.cuda.get_device(config.gpu).use()
-        model.to_gpu()
-        xp = chainer.cuda.cupy
-    else:
-        xp = np
+    hyperface = HyperFace(args.model, config.gpu, config.batchsize)
 
     # Start ImgViewer
     viewer_que = multiprocessing.Queue()
@@ -139,62 +54,44 @@ if __name__ == '__main__':
 
     # Main loop
     logger.info('Start main loop')
-    cnt_img, cnt_o, cnt_x = 0, 0, 0
+    cnt_img, cnt_view = 0, 0
     while True:
-        logger.info('Next image')
+        logger.info('Next image (Count: {})'.format(cnt_img))
 
         # Load AFLW test
         entry = test[cnt_img]
         img = cv2.imread(entry['img_path'])
         img = img.astype(np.float32) / 255.0  # [0:1]
 
-        # Iterative Region Proposals (IRP)
-        detections, landmarks = None, None
-        for stage_cnt in six.moves.xrange(2):
-            if stage_cnt == 0:
-                # Selective search, crop and normalize
-                ssrects = common.selective_search_dlib(img, min_size=2500,
-                                                       check=False,
-                                                       debug_window=False)
-            else:
-                new_ssrects = list()
-                for i in six.moves.xrange(len(ssrects)):
-                    if detections[i] > config.detection_threshold:
-                        new_ssrect = _propose_region(ssrects[i], landmarks[i])
-                        new_ssrects.append(new_ssrect)
-                ssrects = new_ssrects
+        # Resize image for the visibility
+        img_height = 500
+        img_width = img_height * img.shape[1] / img.shape[0]
+        img = cv2.resize(img, (int(img_width), int(img_height)))
 
-            # Forward
-            detections, landmarks, visibilitys, poses, genders = \
-                    _forward_with_rects(model, img, ssrects, config.batchsize)
+        # HyperFace
+        landmarks, visibilities, poses, genders, rects = hyperface(img)
 
-        # Draw all
-        for i in six.moves.xrange(len(ssrects)):
-            detection = detections[i]
+        # Draw results
+        for i in six.moves.xrange(len(landmarks)):
             landmark = landmarks[i]
-            visibility = visibilitys[i]
+            visibility = visibilities[i]
             pose = poses[i]
             gender = genders[i]
+            rect = rects[i]
 
-            detection = (detection > config.detection_threshold)
-
-            # Draw results
-            drawing.draw_detection(img, detection)
-            landmark_color = (0, 1, 0) if detection == 1 else (0, 0, 1)
+            landmark_color = (0, 1, 0)  # detected color
             drawing.draw_landmark(img, landmark, visibility, landmark_color,
                                   0.5, denormalize_scale=False)
-            drawing.draw_pose(img, pose)
-            drawing.draw_gender(img, gender)
+            drawing.draw_pose(img, pose, idx=i)
+            gender = (gender > 0.5)
+            # drawing.draw_gender(img, gender, idx=i)
+            drawing.draw_gender_rect(img, gender, rect)
 
         # Send to imgviewer
         img *= 255  # [0:1] -> [0:255]
-        max_cnt = 66
-        if detection:
-            viewer_que.put(('○', '{}'.format(cnt_o), {'img': img}))
-            cnt_o = (cnt_o + 1) % max_cnt
-        else:
-            viewer_que.put(('☓', '{}'.format(cnt_x), {'img': img}))
-            cnt_x = (cnt_x + 1) % max_cnt
+        max_cnt = 10
+        viewer_que.put(('imgs', '{}'.format(cnt_view), {'img': img}))
+        cnt_view = (cnt_view + 1) % max_cnt
         cnt_img = (cnt_img + 1) % len(test)
 
         time.sleep(1.0)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import cv2
 import dlib
+import math
 
 # logging
 from logging import getLogger, NullHandler
@@ -27,8 +28,8 @@ def _scale_down_image(img, max_img_size):
 
 
 def selective_search_dlib(img, max_img_size=(500, 500),
-                           kvals=(50, 200, 2), min_size=2200, check=True,
-                           debug_window=False):
+                          kvals=(50, 200, 2), min_size=2200, check=True,
+                          debug_window=False):
     if debug_window:
         org_img = img
     org_h, org_w = img.shape[0:2]
@@ -68,3 +69,34 @@ def selective_search_dlib(img, max_img_size=(500, 500),
         cv2.waitKey(0)
 
     return rects
+
+
+def rect_or(a, b):
+    x = min(a[0], b[0])
+    y = min(a[1], b[1])
+    w = max(a[0] + a[2], b[0] + b[2]) - x
+    h = max(a[1] + a[3], b[1] + b[3]) - y
+    return (x, y, w, h)
+
+
+def rect_and(a, b):
+    x = max(a[0], b[0])
+    y = max(a[1], b[1])
+    w = min(a[0] + a[2], b[0] + b[2]) - x
+    h = min(a[1] + a[3], b[1] + b[3]) - y
+    if w < 0 or h < 0:
+        return (0, 0, 0, 0)
+    return (x, y, w, h)
+
+
+def rect_area(a):
+    return a[2] * a[3]
+
+
+def rect_overlap_rate(a, b):
+    area_and = rect_area(rect_and(a, b))
+    area_or = rect_area(rect_or(a, b))
+    if area_or == 0:
+        return 0
+    else:
+        return math.sqrt(float(area_and) / float(area_or))

@@ -7,7 +7,6 @@ import cv2
 import six
 import numpy as np
 
-import config
 import drawing
 
 # logging
@@ -27,7 +26,7 @@ def face_img_func(key, entry, viewer):
     # Draw
     try:
         detection_raw = entry['detection'][0]
-        detection = (detection_raw > config.detection_threshold)
+        detection = (detection_raw > 0.5)
         if 0.0 <= detection_raw <= 1.0:
             drawing.draw_detection(img, detection)
 
@@ -40,7 +39,9 @@ def face_img_func(key, entry, viewer):
         drawing.draw_pose(img, pose)
 
         gender = entry['gender'][0]
-        drawing.draw_gender(img, gender)
+        if 0.0 <= gender <= 1.0:
+            gender = (gender > 0.5)
+            drawing.draw_gender(img, gender)
 
     except KeyError:
         pass

@@ -31,6 +31,12 @@ def _draw_circle(img, pt, color, radius=4, thickness=-1):
     cv2.circle(img, pt, radius, color, int(thickness))
 
 
+def _draw_rect(img, rect, color, thickness=2):
+    p1 = (int(rect[0]), int(rect[1]))
+    p2 = (int(rect[0] + rect[2]), int(rect[1] + rect[3]))
+    cv2.rectangle(img, p1, p2, color, thickness)
+
+
 def _draw_cross(img, pt, color, size=4, thickness=2):
     p0 = (pt[0] - size, pt[1] - size)
     p1 = (pt[0] + size, pt[1] + size)
@@ -124,7 +130,7 @@ def draw_landmark(img, landmark, visibility, color, line_color_scale,
             _draw_circle(img, pt, color, 4, 1)
 
 
-def draw_pose(img, pose, size=30):
+def draw_pose(img, pose, size=30, idx=0):
     # parallel projection (something wrong?)
     rotmat = _rotation_matrix(-pose[0], -pose[1], -pose[2])
     zvec = np.array([0, 0, 1], np.float32)
@@ -135,19 +141,26 @@ def draw_pose(img, pose, size=30):
     xvec = _project_plane_yz(rotmat.dot(xvec))
 
     # Lower left
-    org_pt = (size + 5, img.shape[0] - size - 5)
+    org_pt = ((size + 5) * (2 * idx + 1), img.shape[0] - size - 5)
     _draw_line(img, org_pt, org_pt + zvec * size, (1, 0, 0), 3)
     _draw_line(img, org_pt, org_pt + yvec * size, (0, 1, 0), 3)
     _draw_line(img, org_pt, org_pt + xvec * size, (0, 0, 1), 3)
 
 
-def draw_gender(img, gender, size=7):
+def draw_gender(img, gender, size=7, idx=0):
     # Upper right
-    pt = (img.shape[1] - size - 5, size + 5)
+    pt = (img.shape[1] - (size + 5) * (2 * idx + 1), size + 5)
     if gender == 0:
         _draw_circle(img, pt, (1.0, 0.3, 0.3), size, -1)  # male
     elif gender == 1:
         _draw_circle(img, pt, (0.3, 0.3, 1.0), size, -1)  # female
+
+
+def draw_gender_rect(img, gender, rect):
+    if gender == 0:
+        _draw_rect(img, rect, (1.0, 0.3, 0.3))  # male
+    elif gender == 1:
+        _draw_rect(img, rect, (0.3, 0.3, 1.0))  # female
 
 
 def draw_loss_graph(train_loss_list, test_loss_list, train_epoch_list=None,
