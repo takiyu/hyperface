@@ -39,11 +39,11 @@ def _cvt_variable(v):
     return v
 
 
-def _forward_with_rects(model, raw_img, rects, batchsize):
+def _forward_with_rects(model, img_org, rects, batchsize):
     # Crop and normalize
     cropped_imgs = list()
     for x, y, w, h in rects:
-        img = raw_img[y:y + h + 1, x:x + w + 1, :]
+        img = img_org[y:y + h + 1, x:x + w + 1, :]
         img = cv2.resize(img, models.IMG_SIZE)
         img = cv2.normalize(img, None, -0.5, 0.5, cv2.NORM_MINMAX)
         img = np.transpose(img, (2, 0, 1))
@@ -77,6 +77,21 @@ def _forward_with_rects(model, raw_img, rects, batchsize):
         landmarks[i] = landmarks[i] * landmark_denom + landmark_offset
 
     return detections, landmarks, visibilitys, poses, genders
+
+
+def _propose_region(prev_rect, pts, pad_rate=0.3):
+    rect = cv2.boundingRect(pts)
+    # padding
+    x, y, w, h = rect
+    pad_w = w * pad_rate / 2.0
+    pad_h = h * pad_rate / 2.0
+    rect = (x - pad_w, y - pad_h, w + pad_w, h + pad_h)
+    # union
+    x = max(rect[0], prev_rect[0])
+    y = max(rect[1], prev_rect[1])
+    w = min(rect[0] + rect[2], prev_rect[0] + prev_rect[2]) - x
+    h = min(rect[1] + rect[3], prev_rect[1] + prev_rect[3]) - y
+    return (x, y, w, h)
 
 
 if __name__ == '__main__':
@@ -128,18 +143,30 @@ if __name__ == '__main__':
     while True:
         # Load AFLW test
         entry = test[cnt_img]
-        raw_img = cv2.imread(entry['img_path'])
-        raw_img = raw_img.astype(np.float32) / 255.0  # [0:1]
+        img = cv2.imread(entry['img_path'])
+        img = img.astype(np.float32) / 255.0  # [0:1]
 
-        # Selective search, crop and normalize
-        ssrects = common.selective_search_dlib(raw_img, min_size=3000,
-                                               check=False,
-                                               debug_window=False)
+        # Iterative Region Proposals (IRP)
+        detections, landmarks = None, None
+        for stage_cnt in six.moves.xrange(2):
+            if stage_cnt == 0:
+                # Selective search, crop and normalize
+                ssrects = common.selective_search_dlib(img, min_size=3000,
+                                                       check=False,
+                                                       debug_window=False)
+            else:
+                new_ssrects = list()
+                for i in six.moves.xrange(len(ssrects)):
+                    if detections[i] > config.detection_threshold:
+                        new_ssrect = _propose_region(ssrects[i], landmarks[i])
+                        new_ssrects.append(new_ssrect)
+                ssrects = new_ssrects
 
-        # Forward
-        detections, landmarks, visibilitys, poses, genders = \
-                _forward_with_rects(model, raw_img, ssrects, config.batchsize)
+            # Forward
+            detections, landmarks, visibilitys, poses, genders = \
+                    _forward_with_rects(model, img, ssrects, config.batchsize)
 
+        # Draw all
         for i in six.moves.xrange(len(ssrects)):
             detection = detections[i]
             landmark = landmarks[i]
@@ -147,7 +174,6 @@ if __name__ == '__main__':
             pose = poses[i]
             gender = genders[i]
 
-            img = raw_img.copy()
             detection = (detection > config.detection_threshold)
 
             # Draw results
@@ -158,16 +184,15 @@ if __name__ == '__main__':
             drawing.draw_pose(img, pose)
             drawing.draw_gender(img, gender)
 
-            img *= 255  # [0:1] -> [0:255]
-
-            # Send to imgviewer
-            max_cnt = 66
-            if detection:
-                viewer_que.put(('○', '{}'.format(cnt_o), {'img': img}))
-                cnt_o = (cnt_o + 1) % max_cnt
-            else:
-                viewer_que.put(('☓', '{}'.format(cnt_x), {'img': img}))
-                cnt_x = (cnt_x + 1) % max_cnt
-            cnt_img = (cnt_img + 1) % len(test)
+        # Send to imgviewer
+        img *= 255  # [0:1] -> [0:255]
+        max_cnt = 66
+        if detection:
+            viewer_que.put(('○', '{}'.format(cnt_o), {'img': img}))
+            cnt_o = (cnt_o + 1) % max_cnt
+        else:
+            viewer_que.put(('☓', '{}'.format(cnt_x), {'img': img}))
+            cnt_x = (cnt_x + 1) % max_cnt
+        cnt_img = (cnt_img + 1) % len(test)
 
         time.sleep(1.0)
