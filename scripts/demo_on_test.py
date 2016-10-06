@@ -46,11 +46,12 @@ if __name__ == '__main__':
                                   config.aflw_imgdir_path,
                                   config.aflw_test_rate, raw_mode=True)
 
+    # HyperFace Model
     hyperface = HyperFace(args.model, config.gpu, config.batchsize)
 
     # Start ImgViewer
     viewer_que = multiprocessing.Queue()
-    imgviewer.start(viewer_que, stop_page=True, port=config.port_evaluate)
+    imgviewer.start(viewer_que, stop_page=False, port=config.port_evaluate)
 
     # Main loop
     logger.info('Start main loop')

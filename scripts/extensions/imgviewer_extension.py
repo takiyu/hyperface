@@ -58,7 +58,7 @@ class ImgViewerExtention(extension.Extension):
 
         # Start image viewer
         viewer_que = multiprocessing.Queue()
-        imgviewer.start(viewer_que, stop_page=True, port=port)
+        imgviewer.start(viewer_que, stop_page=False, port=port)
 
         # Member variables
         self._keys = keys

@@ -221,7 +221,7 @@ var MainView = React.createClass({
       return {
         videoWidth: 400,
         videoHeight: 300,
-        uploadResol: 0.5,  // resolution scale
+        uploadResol: 0.8,  // resolution scale
         captureInterval: 30,
       };
     },
