@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import cv2
-import dlib
 import math
 import numpy as np
 import os.path
@@ -8,6 +7,8 @@ import random
 import sqlite3
 
 import chainer
+
+import common
 
 # logging
 from logging import getLogger, NullHandler
@@ -123,68 +124,6 @@ def _load_raw_aflw(sqlite_path, image_dir):
 
     # Return dataset_dict's value (list)
     return list(dataset_dict.values())
-
-
-def _scale_down_image(img, max_img_size):
-    org_h, org_w = img.shape[0:2]
-    h, w = img.shape[0:2]
-    if max_img_size[0] < w:
-        h *= float(max_img_size[0]) / float(w)
-        w = max_img_size[0]
-    if max_img_size[1] < h:
-        w *= float(max_img_size[1]) / float(h)
-        h = max_img_size[1]
-    # Apply resizing
-    if h == org_h and w == org_w:
-        resize_scale = 1
-    else:
-        resize_scale = float(org_h) / float(h)  # equal to `org_w / w`
-        img = cv2.resize(img, (int(w), int(h)))
-    return img, resize_scale
-
-
-def _selective_search_dlib(img, max_img_size=(500, 500),
-                           kvals=(50, 200, 2), min_size=2200, check=True,
-                           debug_window=False):
-    if debug_window:
-        org_img = img
-    org_h, org_w = img.shape[0:2]
-
-    # Resize the image for speed up
-    img, resize_scale = _scale_down_image(img, max_img_size)
-
-    # Selective search
-    drects = []
-    dlib.find_candidate_object_locations(img, drects, kvals=kvals,
-                                         min_size=min_size)
-    rects = [(int(drect.left() * resize_scale),
-              int(drect.top() * resize_scale),
-              int(drect.width() * resize_scale),
-              int(drect.height() * resize_scale)) for drect in drects]
-
-    # Check the validness of the rectangles
-    if check:
-        if len(rects) == 0:
-            logger.error('No selective search rectangle '
-                         '(Please tune the parameters)')
-        for rect in rects:
-            x, y = rect[0], rect[1]
-            w, h = rect[2], rect[3]
-            x2, y2 = x + w, y + h
-            if x < 0 or y < 0 or org_w < x2 or org_h < y2 or w <= 0 or h <= 0:
-                logger.error('Invalid selective search rectangle, rect:{}, '
-                             'image:{}'.format(rect, (org_h, org_w)))
-
-    # Debug window
-    if debug_window:
-        for rect in rects:
-            p1 = (rect[0], rect[1])
-            p2 = (rect[0] + rect[2], rect[1] + rect[3])
-            cv2.rectangle(org_img, p1, p2, (0, 255, 0))
-        cv2.imshow('selective_search_dlib', org_img)
-        cv2.waitKey(0)
-
-    return rects
 
 
 def _rect_contain(rect, pt):
@@ -325,6 +264,7 @@ class AFLW(chainer.dataset.DatasetMixin):
         self.overlap_tls = overlap_tls
         self.random_flip = random_flip
         self.min_valid_landmark_cnt = min_valid_landmark_cnt
+        self.raw_mode = False
 
     def setup_raw(self, sqlite_path, image_dir, log_interval=10):
         # Load raw AFLW dataset
@@ -347,7 +287,7 @@ class AFLW(chainer.dataset.DatasetMixin):
                 self.dataset[i]['ssrect_overlaps'] = list()
             else:
                 # Selective search
-                ssrects = _selective_search_dlib(img)
+                ssrects = common.selective_search_dlib(img)
                 ssrects = _extract_valid_rects(ssrects, img,
                                                entry['others_landmark_pts'])
                 overlaps = [_rect_overlap_rate(ssrect, entry['rect'])
@@ -358,19 +298,13 @@ class AFLW(chainer.dataset.DatasetMixin):
     def __len__(self):
         return len(self.dataset)
 
-    def get_entry(self, i):
-        entry = self.dataset[i]
-        img_path = entry['img_path']
-        landmark = entry['landmark']
-        landmark_visib = entry['landmark_visib']
-        pose = entry['pose']
-        gender = entry['gender']
-        ssrects = entry['ssrects']
-        overlaps = entry['ssrect_overlaps']
-        return (img_path, landmark, landmark_visib, pose, gender, ssrects,
-                overlaps)
-
     def get_example(self, i):
+        entry = self.dataset[i]
+
+        # Raw entry
+        if self.raw_mode:
+            return entry
+
         # Loop for detection alternation
         try_cnt = 0
         special_skip_cnt = 0
@@ -378,12 +312,18 @@ class AFLW(chainer.dataset.DatasetMixin):
             try_cnt += 1
 
             # === Entry variables ===
-            img_path, landmark, landmark_visib, pose, gender, \
-                ssrects, overlaps = self.get_entry(i)
+            img_path = entry['img_path']
+            landmark = entry['landmark']
+            landmark_visib = entry['landmark_visib']
+            pose = entry['pose']
+            gender = entry['gender']
+            ssrects = entry['ssrects']
+            overlaps = entry['ssrect_overlaps']
+            # Random ssrect
             if len(ssrects) == 0:
                 logger.warn('No selective search rectangle')
                 raise IndexError
-            ssrect_idx = random.randint(0, len(ssrects) - 1)  # Random ssrect
+            ssrect_idx = random.randint(0, len(ssrects) - 1)
             ssrect = ssrects[ssrect_idx]
             overlap = overlaps[ssrect_idx]
             x, y, w, h = ssrect
@@ -490,9 +430,11 @@ class AFLW(chainer.dataset.DatasetMixin):
                 'm_visibility': mask_landmark_visib, 'm_pose': mask_pose}
 
 
-def setup_aflw(cache_path, sqlite_path=None, image_dir=None, test_rate=0.04):
+def setup_aflw(cache_path, sqlite_path=None, image_dir=None, test_rate=0.04,
+               raw_mode=False):
     # Empty AFLW
     aflw = AFLW()
+    aflw.raw_mode = raw_mode
 
     logger.info('Try to load AFLW cache from "{}"'.format(cache_path))
     try:

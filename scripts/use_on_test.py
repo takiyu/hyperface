@@ -27,6 +27,14 @@ imgviewer.logger.setLevel(INFO)
 # Disable type check in chainer
 os.environ["CHAINER_TYPE_CHECK"] = "0"
 
+def _cvt_variable(v):
+    # Convert from chainer variable
+    if isinstance(v, chainer.variable.Variable):
+        v = v.data
+        if hasattr(v, 'get'):
+            v = v.get()
+    return v
+
 
 if __name__ == '__main__':
     # Argument
@@ -75,44 +83,37 @@ if __name__ == '__main__':
     logger.info('Start main loop')
     cnt_img, cnt_o, cnt_x = 0, 0, 0
     while True:
+        # Load AFLW test
         data = test[cnt_img]
+        img = data['x_img']
 
         # Create single batch
-        img = data['x_img']
         imgs = xp.asarray([img])
         x = chainer.Variable(imgs, volatile=True)
 
         # Forward
         y = model(x)
 
-        # Chainer.Variable -> xp.ndarray
-        img = y['img'].data
-        detection = y['detection'].data
-        landmark = y['landmark'].data
-        visibility = y['visibility'].data
-        pose = y['pose'].data
-        gender = y['gender'].data
-
-        # xp.ndarray -> np.ndarray
-        if config.gpu >= 0:
-            img = img.get()
-            detection = detection.get()
-            landmark = landmark.get()
-            visibility = visibility.get()
-            pose = pose.get()
-            gender = gender.get()
+        # Chainer.Variable -> np.ndarray
+        imgs = _cvt_variable(y['img'])
+        detections = _cvt_variable(y['detection'])
+        landmarks = _cvt_variable(y['landmark'])
+        visibilitys = _cvt_variable(y['visibility'])
+        poses = _cvt_variable(y['pose'])
+        genders = _cvt_variable(y['gender'])
 
         # Use first data in one batch
-        img = img[0]
-        detection = detection[0]
-        landmark = landmark[0]
-        visibility = visibility[0]
-        pose = pose[0]
-        gender = gender[0]
+        img = imgs[0]
+        detection = detections[0]
+        landmark = landmarks[0]
+        visibility = visibilitys[0]
+        pose = poses[0]
+        gender = genders[0]
 
         img = np.transpose(img, (1, 2, 0))
         img = img.copy()
         img += 0.5  # [-0.5:0.5] -> [0:1]
+        detection = (detection > config.detection_threshold)
 
         # Draw results
         drawing.draw_detection(img, detection)
@@ -123,8 +124,9 @@ if __name__ == '__main__':
 
         img *= 255  # [0:1] -> [0:255]
 
+        # Send to imgviewer
         max_cnt = 66
-        if detection == 1:
+        if detection:
             viewer_que.put(('○', '{}'.format(cnt_o), {'img': img}))
             cnt_o = (cnt_o + 1) % max_cnt
         else:

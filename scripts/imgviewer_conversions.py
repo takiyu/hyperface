@@ -3,10 +3,12 @@
  Conversion functions for image viewer extension
 '''
 
-import drawing
 import cv2
 import six
 import numpy as np
+
+import config
+import drawing
 
 # logging
 from logging import getLogger, NullHandler
@@ -24,8 +26,10 @@ def face_img_func(key, entry, viewer):
 
     # Draw
     try:
-        detection = entry['detection'][0]
-        drawing.draw_detection(img, detection)
+        detection_raw = entry['detection'][0]
+        detection = (detection_raw > config.detection_threshold)
+        if 0.0 <= detection_raw <= 1.0:
+            drawing.draw_detection(img, detection)
 
         landmark = entry['landmark'][0]
         visibility = entry['visibility'][0]

@@ -128,9 +128,9 @@ class HyperFaceModel(chainer.Chain):
             loss = (loss_detection + loss_landmark + loss_visibility +
                     loss_pose + loss_gender)
 
-        # Prediction (the same shape as t_**)
-        h_detection = F.argmax(h_detection, axis=1)  # ([[y, n]] -> [d])
-        h_gender = F.argmax(h_gender, axis=1)  # ([[m, f]] -> [g])
+        # Prediction (the same shape as t_**, and [0:1])
+        h_detection = F.softmax(h_detection)[:, 1] # ([[y, n]] -> [d])
+        h_gender = F.softmax(h_gender)[:, 1] # ([[m, f]] -> [g])
 
         if self.report:
             # Report losses

@@ -64,13 +64,14 @@ def _project_plane_yz(vec):
 def draw_detection(img, detection, size=15):
     # Upper left
     pt = (size + 5, size + 5)
-    if detection == 1:
+    if detection:
         _draw_circle(img, pt, (0, 0.7, 0), size, 5)
-    elif detection == 0:
+    else:
         _draw_cross(img, pt, (0, 0, 0.7), size, 5)
 
 
-def draw_landmark(img, landmark, visibility, color, line_color_scale):
+def draw_landmark(img, landmark, visibility, color, line_color_scale,
+                  denormalize_scale=True):
     """  Draw AFLW 21 points landmark
         0|LeftBrowLeftCorner
         1|LeftBrowCenter
@@ -104,9 +105,10 @@ def draw_landmark(img, landmark, visibility, color, line_color_scale):
         landmark = landmark.reshape(int(landmark.shape[-1] / 2), 2)
     assert(landmark.shape[0] == 21 and visibility.shape[0] == 21)
 
-    h, w = img.shape[0:2]
-    size = np.array([[w, h]], dtype=np.float32)
-    landmark = landmark * size + size / 2
+    if denormalize_scale:
+        h, w = img.shape[0:2]
+        size = np.array([[w, h]], dtype=np.float32)
+        landmark = landmark * size + size / 2
 
     # Line
     line_color = tuple(v * line_color_scale for v in color)
