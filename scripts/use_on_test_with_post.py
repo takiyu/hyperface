@@ -43,7 +43,7 @@ def _forward_with_rects(model, img_org, rects, batchsize):
     # Crop and normalize
     cropped_imgs = list()
     for x, y, w, h in rects:
-        img = img_org[y:y + h + 1, x:x + w + 1, :]
+        img = img_org[int(y):int(y + h + 1), int(x):int(x + w + 1), :]
         img = cv2.resize(img, models.IMG_SIZE)
         img = cv2.normalize(img, None, -0.5, 0.5, cv2.NORM_MINMAX)
         img = np.transpose(img, (2, 0, 1))
@@ -141,6 +141,8 @@ if __name__ == '__main__':
     logger.info('Start main loop')
     cnt_img, cnt_o, cnt_x = 0, 0, 0
     while True:
+        logger.info('Next image')
+
         # Load AFLW test
         entry = test[cnt_img]
         img = cv2.imread(entry['img_path'])
