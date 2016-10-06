@@ -195,4 +195,4 @@ if __name__ == '__main__':
             cnt_x = (cnt_x + 1) % max_cnt
         cnt_img = (cnt_img + 1) % len(test)
 
-        time.sleep(1.0)
+        time.sleep(10)
