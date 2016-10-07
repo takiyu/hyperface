@@ -57,7 +57,20 @@ Open `http://localhost:8891/` to see predictions.
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/face.png">
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/nonface.png">
 
+## Demos with post-processes ##
+```
+python ./scripts/demo_on_test.py --model result/model_epoch_190
+```
+```
+python ./scripts/demo_live.py --model result/model_epoch_190
+```
+Open `http://localhost:8891/` to see demos.
+
+### Demo screenshot ###
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/demo1.png">
+
 ## ToDo ##
 - [ ] Tune training parameters.
 - [ ] Fix pose drawing.
-- [ ] Implement post processes.
+- [x] Implement post processes.
+- [ ] Tune post processes parameters.
