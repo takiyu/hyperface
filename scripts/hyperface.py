@@ -7,6 +7,7 @@ import six
 
 import common
 import datasets
+# import drawing
 import models
 
 # logging
@@ -64,7 +65,7 @@ def _forward_with_rects(model, img_org, rects, batchsize, xp):
     return detections, landmarks, visibilities, poses, genders
 
 
-def _proposal_region(pts, pts_mask, img_rect, pad_rate=0.2):
+def _proposal_region(pts, pts_mask, img_rect, landmark_pad_rate=0.1):
     # TODO Improve for rotated rectangles
     # AFLW Template
     tpl_pts = datasets.aflw_template_landmark()
@@ -73,36 +74,38 @@ def _proposal_region(pts, pts_mask, img_rect, pad_rate=0.2):
     mask_idxs = np.where(pts_mask > 0.5)
     masked_pts = pts[mask_idxs]
     masked_tpl_pts = tpl_pts[mask_idxs]
-    if masked_pts.shape[0] <= 4 or masked_tpl_pts.shape[0] <= 4:
+    if masked_pts.shape[0] < 4 or masked_tpl_pts.shape[0] < 4:
         return (0, 0, 0, 0)
+
+
     # Homography matrix
-    H, _ = cv2.findHomography(tpl_pts, pts, method=cv2.LMEDS)
+    H, _ = cv2.findHomography(masked_tpl_pts, masked_pts, method=cv2.RANSAC)
+    if H is None:
+        return (0, 0, 0, 0)
+    # Apply to rect
     x1, y1 = tpl_rect[0], tpl_rect[1]
     x2, y2 = tpl_rect[2] + x1, tpl_rect[3] + y1
-    # Apply to rect
-    rect_xy1 = H.dot(np.array([x1, y1, 1.0], dtype=np.float32))
-    rect_xy2 = H.dot(np.array([x2, y2, 1.0], dtype=np.float32))
-    rect_xy1 = rect_xy1[0:2] / rect_xy1[2]
-    rect_xy2 = rect_xy2[0:2] / rect_xy2[2]
-    # (x1, y1, x2, y2) -> (x, y, w, h)
-    if rect_xy1[0] < rect_xy2[0]:
-        x, w = rect_xy1[0], rect_xy2[0] - rect_xy1[0]
-    else:
-        x, w = rect_xy2[0], rect_xy1[0] - rect_xy2[0]
-    if rect_xy1[1] < rect_xy2[1]:
-        y, h = rect_xy1[1], rect_xy2[1] - rect_xy1[1]
-    else:
-        y, h = rect_xy2[1], rect_xy1[1] - rect_xy2[1]
-    rect = (x, y, w, h)
+    rect_pts = np.array([[x1, y1, 1.0],
+                         [x1, y2, 1.0],
+                         [x2, y1, 1.0],
+                         [x2, y2, 1.0]], dtype=np.float32)
+    rect_pts = H.dot(rect_pts.T).T
+    rect_pts = rect_pts[:, 0:2] / rect_pts[:, 2].reshape(4, 1)
+    # Convert points to rectangle
+    min_xy = np.min(rect_pts, axis=0)
+    max_xy = np.max(rect_pts, axis=0)
+    rect = (min_xy[0], min_xy[1], max_xy[0] - min_xy[0], max_xy[1] - min_xy[1])
+
+    # landmark's rect
+    pts_rect = cv2.boundingRect(masked_pts)
+    # padding
+    x, y, w, h = pts_rect
+    pad_w = w * landmark_pad_rate
+    pad_h = h * landmark_pad_rate
+    pts_rect = (x - pad_w / 2.0, y - pad_h / 2.0, w + pad_w, h + pad_h)
 
     # union with landmark's rect
-    rect = common.rect_or(rect, cv2.boundingRect(masked_pts))
-
-    # padding
-    x, y, w, h = rect
-    pad_w = w * pad_rate
-    pad_h = h * pad_rate
-    rect = (x - pad_w / 2.0, y - pad_h / 2.0, w + pad_w, h + pad_h)
+    rect = common.rect_or(rect, pts_rect)
 
     # intersect with img_rect
     rect = common.rect_and(rect, img_rect)
@@ -161,7 +164,7 @@ class HyperFace(object):
             # Update ssrects using landmarks
             new_ssrects = list()
             for i in six.moves.xrange(len(ssrects)):
-                if detections[i] > 0.20:  # TODO configure
+                if detections[i] > 0.25:  # TODO configure
                     new_ssrect = _proposal_region(landmarks[i],
                                                   visibilities[i], img_rect)
                     if new_ssrect[2] > 0 and new_ssrect[3] > 0:
@@ -184,7 +187,7 @@ class HyperFace(object):
         precise_rects = [_bounding_region(l, v) for l, v
                          in zip(landmarks, visibilities)]
         areas = [common.rect_area(rect) for rect in precise_rects]
-        overlap_tls = 0.20
+        overlap_tls = 0.20  # TODO configure
         scorebase_idxs = np.argsort(areas).tolist()  # ascending order
         while len(scorebase_idxs) > 0:
             # Register new index set with the best rect index
