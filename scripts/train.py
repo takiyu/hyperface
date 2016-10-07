@@ -10,13 +10,14 @@ from chainer.links.caffe import CaffeFunction
 import argparse
 import os
 
+import log_initializer
+
 import config
 import datasets
 from extensions import ImgViewerExtention
 from extensions import SequentialEvaluator
 from imgviewer_conversions import face_img_func, weights_img_func
 from imgviewer_conversions import lossgraph_entry_func, lossgraph_img_func
-import log_initializer
 import models
 from models import copy_layers
 
@@ -114,10 +115,10 @@ if __name__ == '__main__':
     eval_model.train = False
 
     # Extension intervals
-    n_iteration = max(len(train) / config.batchsize, 1)
-    test_interval = (max(len(train) / len(test), 1), 'iteration')
+    n_iteration = max(len(train) // config.batchsize, 1)
+    test_interval = (max(len(train) // len(test), 1), 'iteration')
     save_interval = (5, 'epoch')
-    log_interval = (max(n_iteration / 1, 1), 'iteration')
+    log_interval = (max(n_iteration // 1, 1), 'iteration')
     progressbar_interval = 3
     imgview_face_interval = (5, 'iteration')
     imgview_weight_interval = (1, 'epoch')
