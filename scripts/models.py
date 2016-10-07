@@ -133,13 +133,14 @@ class HyperFaceModel(chainer.Chain):
         h_gender = F.softmax(h_gender)[:, 1] # ([[m, f]] -> [g])
 
         if self.report:
-            # Report losses
-            chainer.report({'loss': loss,
-                            'loss_detection': loss_detection,
-                            'loss_landmark': loss_landmark,
-                            'loss_visibility': loss_visibility,
-                            'loss_pose': loss_pose,
-                            'loss_gender': loss_gender}, self)
+            if self.backward:
+                # Report losses
+                chainer.report({'loss': loss,
+                                'loss_detection': loss_detection,
+                                'loss_landmark': loss_landmark,
+                                'loss_visibility': loss_visibility,
+                                'loss_pose': loss_pose,
+                                'loss_gender': loss_gender}, self)
 
             # Report results
             predict_data = {'img': x_img, 'detection': h_detection,
