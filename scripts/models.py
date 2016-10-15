@@ -51,7 +51,6 @@ class HyperFaceModel(chainer.Chain):
         )
         self.train = True
         self.report = True
-        self.backward = True
         assert(len(loss_weights) == 5)
         self.loss_weights = loss_weights
 
@@ -96,7 +95,7 @@ class HyperFaceModel(chainer.Chain):
         h_gender = self.fc_gender2(h_gender)
 
         # Mask and Loss
-        if self.backward:
+        if self.train:
             # Landmark masking with visibility
             m_landmark_ew = F.stack((t_visibility, t_visibility), axis=2)
             m_landmark_ew = F.reshape(m_landmark_ew, (-1, N_LANDMARK * 2))
@@ -133,7 +132,7 @@ class HyperFaceModel(chainer.Chain):
         h_gender = F.softmax(h_gender)[:, 1] # ([[m, f]] -> [g])
 
         if self.report:
-            if self.backward:
+            if self.train:
                 # Report losses
                 chainer.report({'loss': loss,
                                 'loss_detection': loss_detection,
@@ -159,7 +158,7 @@ class HyperFaceModel(chainer.Chain):
                             'conv4_w': {'weights': self.conv4.W},
                             'conv5_w': {'weights': self.conv5.W}}, self)
 
-        if self.backward:
+        if self.train:
             return loss
         else:
             return {'img': x_img, 'detection': h_detection,
