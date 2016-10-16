@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import cv2
 import os
 import multiprocessing
 import numpy as np
 import six
+import time
 
 import config
 import drawing
@@ -40,7 +42,7 @@ if __name__ == '__main__':
     # HyperFace Model
     hyperface = HyperFace(args.model, config.gpu, config.batchsize)
 
-    # Start ImgLiveUploader
+    # Start ImgViewer
     request_queue = multiprocessing.Queue()
     response_queue = multiprocessing.Queue()
     imgliveuploader.start(request_queue, response_queue, stop_page=False,

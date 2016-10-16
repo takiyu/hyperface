@@ -60,6 +60,7 @@ if __name__ == '__main__':
     model = models.HyperFaceModel()
     model.train = False
     model.report = False
+    model.backward = False
 
     # Initialize model
     logger.info('Initialize a model using model "{}"'.format(args.model))

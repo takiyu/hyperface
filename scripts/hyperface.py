@@ -127,6 +127,7 @@ class HyperFace(object):
         chainer.serializers.load_npz(model_path, model)
         model.train = False
         model.report = False
+        model.backward = False
 
         # GPU
         if gpu >= 0:
