@@ -60,11 +60,12 @@ Open `http://localhost:8891/` to see predictions.
 
 ### Your image file ###
 Set your image file with `--img` argument.
-
 The dependence are less than other tests and demos.
 ```bash
 python ./scripts/use_on_file.py --model model_epoch_190 --img sample_images/lena_face.png
 ```
+Input images are contained in `sample_images` directory.
+
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/lena_face_result.png">
 <img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/lena_face_result2.png">
 
