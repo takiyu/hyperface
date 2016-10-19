@@ -3,6 +3,8 @@
 
 This is NOT official implementation.
 
+This software is released under the MIT License, see LICENSE.txt.
+
 ## Features ##
 * `Chainer` implementation
 * Image viewer on web browsers
