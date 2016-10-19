@@ -14,6 +14,7 @@ This is NOT official implementation.
 * OpenCV 2.4.9
 * Flask 0.11.1
 * Flask_SocketIO 2.4
+* Dlib 19.1.0
 
 ### Arch Linux ###
 * Python 3.5
@@ -21,6 +22,7 @@ This is NOT official implementation.
 * OpenCV 3.1.0
 * Flask 0.10.1
 * Flask_SocketIO 2.2
+* Dlib 19.1.0
 
 ## Configuration ##
 Important variables are configured by `config.json`.
@@ -28,8 +30,6 @@ Important variables are configured by `config.json`.
 Set `gpu` positive number to use GPU, port numbers of web servers and so on.
 
 ## Train ##
-To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0).
-
 ### Preparation ###
 Download [AFLW Dataset](https://lrs.icg.tugraz.at/research/aflw/) and [AlexNet Caffe Model](https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet), expand them and set `aflw_sqlite_path`, `aflw_imgdir_path`, and `alexnet_caffemodel_path` in `config.json`
 
@@ -48,26 +48,40 @@ python ./scripts/train.py --pretrainedmodel result_pretrain/model_epoch_40
 Use arbitrary epoch number instead of 40.
 
 ## Test ##
-```
-python ./scripts/use_on_test.py --model result/model_epoch_190 
+To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0).
+
+### AFLW test images ###
+```bash
+python ./scripts/use_on_test.py --model model_epoch_190
 ```
 Open `http://localhost:8891/` to see predictions.
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/face.png">
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/nonface.png">
 
-### Result on AFLW test images ###
-<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/face.png">
-<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/nonface.png">
+### Your image file ###
+Set your image file with `--img` argument.
+
+The dependence are less than other tests and demos.
+```bash
+python ./scripts/use_on_file.py --model model_epoch_190 --img sample_images/lena_face.png
+```
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/lena_face_result.png">
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/lena_face_result2.png">
 
 ## Demos with post-processes ##
-```
-python ./scripts/demo_on_test.py --model result/model_epoch_190
-```
-```
-python ./scripts/demo_live.py --model result/model_epoch_190
-```
 Open `http://localhost:8891/` to see demos.
 
-### Demo screenshot ###
-<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/screenshots/demo1.png">
+### AFLW test images ###
+```bash
+python ./scripts/demo_on_test.py --model model_epoch_190
+```
+Demo using AFLW test images
+<img src="https://raw.githubusercontent.com/takiyu/hyperface/master/sample_images/demo1.png">
+
+### Web camera on your browser ###
+```bash
+python ./scripts/demo_live.py --model model_epoch_190
+```
 
 ## ToDo ##
 - [ ] Tune training parameters.
