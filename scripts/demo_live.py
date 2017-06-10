@@ -44,7 +44,7 @@ if __name__ == '__main__':
     request_queue = multiprocessing.Queue()
     response_queue = multiprocessing.Queue()
     imgliveuploader.start(request_queue, response_queue, stop_page=False,
-                          port=config.port_evaluate)
+                          port=config.port_demo)
 
     # Main loop
     logger.info('Start main loop')

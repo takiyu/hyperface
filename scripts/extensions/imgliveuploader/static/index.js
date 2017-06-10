@@ -2,11 +2,13 @@ var socket = io.connect('/liveuploader');
 
 var Button = ReactBootstrap.Button;
 var Popover = ReactBootstrap.Popover;
+var Input = ReactBootstrap.Input;
 
 var VideoCanvas = React.createClass({
     getInitialState() {
       return {
         visible : true,
+        videoRotate180: false,
       };
     },
     propTypes: {
@@ -51,6 +53,12 @@ var VideoCanvas = React.createClass({
     setVisibility(v) {
       this.setState({visible: v});
     },
+    handleCheckboxRotate180(v) {
+      this.setState({videoRotate180: !this.state.videoRotate180});
+    },
+    getVideoRotate180() {
+      return this.state.videoRotate180;
+    },
     play() {
       this.stop(); // escape double loop
 
@@ -74,6 +82,7 @@ var VideoCanvas = React.createClass({
     render() {
       return (
         <div>
+          <Button onClick={this.handleCheckboxRotate180}>Rotate</ Button>
           <video ref="video"
            style={{display: "none"}}
            width={this.props.width}
@@ -81,7 +90,11 @@ var VideoCanvas = React.createClass({
            autoPlay="1" />
           <canvas ref="canvas"
            className="img-responsive"
-           style={{backgroundColor: 'black'}}
+           style={{backgroundColor: 'black'},
+                  {transform: this.state.videoRotate180 ? 'rotate(180deg)'
+                                                        : 'none'},
+                  {WebkitTransform: this.state.videoRotate180 ? 'rotate(180deg)'
+                                                              : 'none'}}
            width={this.props.width}
            height={this.props.height} />
           <canvas ref="upload_canvas"
@@ -120,7 +133,8 @@ var VideoUI = React.createClass({
       // get image data
       var data = this.refs.videocanvas.upload_canvas.toDataURL('image/jpeg');
       // emit
-      socket.emit('upload_img', {img: data});
+      var rotate = this.refs.videocanvas.getVideoRotate180();
+      socket.emit('upload_img', {img: data, rotate: rotate});
     },
     onResult(data) {
       // check whether this request is canceled

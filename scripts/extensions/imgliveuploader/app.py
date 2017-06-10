@@ -70,6 +70,26 @@ def encodeImgElement(data, key):
         except:
             pass
 
+def rotateImg(img, deg):
+    h, w = img.shape[:2]
+    M = cv2.getRotationMatrix2D((w / 2, h / 2), deg, 1.0)
+    rotated_img = cv2.warpAffine(img, M, (w, h))
+    return rotated_img
+
+def rotateImgElement(data, key, deg):
+    try:
+        img = rotateImg(data[key], deg)
+        if img is None:
+            raise Exception()
+        data[key] = img
+    except KeyError:
+        logger.error('No image data (key: %s)' % key)
+    except:
+        logger.error('Invalid image data (key: %s)' % key)
+        try:
+            data.pop(key)
+        except:
+            pass
 
 def new_server(request_queue, response_queue, stop_page, port, secret_key):
     # create server
@@ -115,6 +135,9 @@ def new_server(request_queue, response_queue, stop_page, port, secret_key):
         img = decodeimg(img)
         if img is None:
             return
+        # Rotate 180
+        if 'rotate' in data and data['rotate']:
+            img = rotateImg(img, 180)
 
         # put into output queue
         request_queue.put(img)
@@ -123,6 +146,9 @@ def new_server(request_queue, response_queue, stop_page, port, secret_key):
         if response_queue is not None:
             # wait for response
             resp_data = response_queue.get()
+            # Rotate 180
+            if 'rotate' in data and data['rotate']:
+                rotateImgElement(resp_data, key='img', deg=180)
             # encode image
             encodeImgElement(resp_data, key='img')
             # emit

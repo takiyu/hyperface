@@ -13,6 +13,7 @@
     "port_weight": 8889,
     "port_lossgraph": 8890,
     "port_evaluate": 8891,
+    "port_demo": 9000,
     "outdir": "result",
     "outdir_pretrain": "result_pretrain"
 }

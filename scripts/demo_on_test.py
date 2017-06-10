@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # Start ImgViewer
     viewer_que = multiprocessing.Queue()
-    imgviewer.start(viewer_que, stop_page=False, port=config.port_evaluate)
+    imgviewer.start(viewer_que, stop_page=False, port=config.port_demo)
 
     # Main loop
     logger.info('Start main loop')
