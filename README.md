@@ -50,7 +50,7 @@ python ./scripts/train.py --pretrainedmodel result_pretrain/model_epoch_40
 Use arbitrary epoch number instead of 40.
 
 ## Test ##
-To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0) (or [here](https://drive.google.com/file/d/0Bwx_-IFYzb5GaVZsdVotbjd5NVU/view) (Don't expand as zip)).
+To skip training, please use trained model from [here](https://www.dropbox.com/s/qrc1c9ek737ljm5/model_epoch_190?dl=0) (or [here](https://drive.google.com/file/d/0Bwx_-IFYzb5GaVZsdVotbjd5NVU/view) (___Do not expand___ as zip)).
 
 ### AFLW test images ###
 ```bash
